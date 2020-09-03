@@ -4,7 +4,7 @@
 NSString *ACCOUNT_NAME = @"account_name";
 NSString *ACCOUNT_KEY = @"account_key";
 NSString *CONTAINER_NAME = @"container_name";
-NSString *CONNECTION_STRING = @"";
+NSString *CONNECTION_STRING = @"connection_string";
 
 
 static NSString *const _filePath = @"filePath";
@@ -89,13 +89,12 @@ RCT_EXPORT_METHOD(uploadFile:(NSDictionary *)options
 
 
 RCT_EXPORT_METHOD(configure:(NSString *)account_name
-                 key:(NSString *)account_key
+                 key:(NSString *)connection_string
                  container:(NSString *)conatiner_name)
 {
     ACCOUNT_NAME = account_name;
-    ACCOUNT_KEY = account_key;
     CONTAINER_NAME = [conatiner_name lowercaseString];
-    CONNECTION_STRING = [NSString stringWithFormat:@"DefaultEndpointsProtocol=https;AccountName=%@;AccountKey=%@",ACCOUNT_NAME,ACCOUNT_KEY];
+    CONNECTION_STRING = connection_string;
 }
 
 @end
