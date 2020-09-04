@@ -63,28 +63,29 @@ RCT_EXPORT_METHOD(uploadFile:(NSDictionary *)options
     AZSCloudBlobClient *blobClient = [account getBlobClient];
 
     // Create a local container object.
+    // Create a local container object.
     AZSCloudBlobContainer *blobContainer = [blobClient containerReferenceFromName:CONTAINER_NAME];
-    [blobContainer createContainerIfNotExistsWithAccessType:AZSContainerPublicAccessTypeContainer requestOptions:nil operationContext:nil completionHandler:^(NSError *error, BOOL exists)
-        {
-            if (error){
-                reject(@"no_event",@"Error in creating container.",error);
-            }
-            else{
+//    [blobContainer createContainerIfNotExistsWithAccessType:AZSContainerPublicAccessTypeContainer requestOptions:nil operationContext:nil completionHandler:^(NSError *error, BOOL exists)
+//        {
+//            if (error){
+//                reject(@"no_event",@"Error in creating container.",error);
+//            }
+//            else{
                 // Create a local blob object
                 AZSCloudBlockBlob *blockBlob = [blobContainer blockBlobReferenceFromName:fileName];
                 blockBlob.properties.contentType = contentType;
-                
-                [blockBlob uploadFromFileWithURL:[NSURL URLWithString:filePath] completionHandler:^(NSError * error) {
+                NSData *data = [NSData dataWithContentsOfFile:filePath];
+                [blockBlob uploadFromData:data completionHandler:^(NSError * error) {
                     if (error){
                         reject(@"no_event",[NSString stringWithFormat: @"Error in creating blob. %@",filePath],error);
-                    }else{
+                    } else {
                         resolve(fileName);
                     }       
                 }];
+
                 
-             
-            }
-        }];
+//            }
+//        }];
 }
 
 
