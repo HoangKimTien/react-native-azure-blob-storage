@@ -18,9 +18,9 @@ RCT_EXPORT_MODULE();
 
 RCT_EXPORT_METHOD(uploadFile:(NSDictionary *)options
                  findEventsWithResolver:(RCTPromiseResolveBlock)resolve
-                 rejecter:(RCTPromiseRejectBlock)reject)
+                 rejecter:(RCTPromiseRejectBlock)reject progress:(RCTResponseSenderBlock)responseProgress)
 {
-    [self uploadBlobToContainer: options rejecter:reject resolver:resolve];
+    [self uploadBlobToContainer: options rejecter:reject resolver:resolve progress:responseProgress];
 }
 
 -(NSString *)genRandStringLength:(int)len {
@@ -32,7 +32,7 @@ RCT_EXPORT_METHOD(uploadFile:(NSDictionary *)options
     return randomString;
 }
 
--(void)uploadBlobToContainer:(NSDictionary *)options rejecter:(RCTPromiseRejectBlock)reject resolver:(RCTPromiseResolveBlock)resolve{
+-(void)uploadBlobToContainer:(NSDictionary *)options rejecter:(RCTPromiseRejectBlock)reject resolver:(RCTPromiseResolveBlock)resolve progress:(RCTResponseSenderBlock)responseProgress{
     NSError *accountCreationError;
 
     
@@ -59,10 +59,10 @@ RCT_EXPORT_METHOD(uploadFile:(NSDictionary *)options
         NSLog(@"Error in creating account.");
     }
 
+    NSError *error;
     // Create a blob service client object.
     AZSCloudBlobClient *blobClient = [account getBlobClient];
 
-    // Create a local container object.
     // Create a local container object.
     AZSCloudBlobContainer *blobContainer = [blobClient containerReferenceFromName:CONTAINER_NAME];
 //    [blobContainer createContainerIfNotExistsWithAccessType:AZSContainerPublicAccessTypeContainer requestOptions:nil operationContext:nil completionHandler:^(NSError *error, BOOL exists)
@@ -72,16 +72,45 @@ RCT_EXPORT_METHOD(uploadFile:(NSDictionary *)options
 //            }
 //            else{
                 // Create a local blob object
-                AZSCloudBlockBlob *blockBlob = [blobContainer blockBlobReferenceFromName:fileName];
-                blockBlob.properties.contentType = contentType;
-                NSData *data = [NSData dataWithContentsOfFile:filePath];
-                [blockBlob uploadFromData:data completionHandler:^(NSError * error) {
-                    if (error){
-                        reject(@"no_event",[NSString stringWithFormat: @"Error in creating blob. %@",filePath],error);
-                    } else {
-                        resolve(fileName);
-                    }       
-                }];
+//                AZSCloudBlockBlob *blockBlob = [blobContainer blockBlobReferenceFromName:fileName];
+//                blockBlob.properties.contentType = contentType;
+//                NSData *data = [NSData dataWithContentsOfFile:filePath];
+//                [blockBlob uploadFromData:data completionHandler:^(NSError * error) {
+//                    if (error){
+//                        reject(@"no_event",[NSString stringWithFormat: @"Error in creating blob. %@",filePath],error);
+//                    } else {
+//                        resolve(fileName);
+//                    }
+//                }];
+    
+                @autoreleasepool {
+                    AZSCloudBlockBlob *blob = [blobContainer blockBlobReferenceFromName:fileName];
+                    
+                    NSUInteger size = [[[NSFileManager defaultManager] attributesOfItemAtPath:filePath error:&error] fileSize];
+                    
+                    NSInputStream *stream = [NSInputStream inputStreamWithFileAtPath:filePath];
+                    
+                    AZSOperationContext *operationContext = [[AZSOperationContext alloc] init];
+                    operationContext.sendingRequest = ^(NSMutableURLRequest *request, AZSOperationContext *context) {
+                        NSNumber *number = [stream propertyForKey:NSStreamFileCurrentOffsetKey];
+                        if (number != nil) {
+                            NSUInteger pos = [number longValue];
+                            float percentage = ((float)pos / size) * 100;
+                            responseProgress(@[[NSNumber numberWithFloat:percentage]]);
+                            NSLog(@"current %ld of %ld, %f%% completed", pos, size, percentage);
+                        }
+                    };
+                    
+                    NSLog(@"upload started.");
+                    
+                    [blob uploadFromStream:stream accessCondition:nil requestOptions:nil operationContext:operationContext completionHandler:^(NSError *error) {
+                         if (error){
+                             reject(@"no_event",[NSString stringWithFormat: @"Error in creating blob. %@",filePath],error);
+                         } else {
+                             resolve(fileName);
+                         }
+                    }];
+                }
 
                 
 //            }
